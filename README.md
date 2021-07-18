@@ -111,7 +111,7 @@ sei();                                // enable global interrupts
 set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // set sleep mode to power down
 ```
 
-As long as no button is pressed, the ATtiny remains in sleep mode power down and consumes a current of around 150nA at a voltage of 3V. The typical capacity of a CR2032 battery is 230mAh. This results in a theoretical battery life of 1.5 million hours or 175 years. In real life, of course, no battery will last that long. When the button is pressed, peaks of up to 30mA are consumed. The diagram below shows the course of the current consumption when a button is pressed according to a measurement with the [Power Profiler Kit II](https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2):
+As long as no button is pressed, the ATtiny remains in sleep mode power down and consumes a current of around 100nA at a voltage of 3V. The typical capacity of a CR2032 battery is 230mAh. This results in a theoretical battery life of 2.3 million hours or 269 years. In real life, of course, no battery will last that long due to its self-discharge. When the button is pressed, peaks of up to 30mA are consumed. The diagram below shows the course of the current consumption when a button is pressed according to a measurement with the [Power Profiler Kit II](https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2):
 
 ![current.png](https://raw.githubusercontent.com/wagiminator/ATtiny13-TinyRemoteXL/main/documentation/TinyRemoteXL_current.png)
 
