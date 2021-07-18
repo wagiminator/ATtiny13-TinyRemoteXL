@@ -98,7 +98,7 @@ EMPTY_INTERRUPT (PCINT0_vect);          // nothing to be done here, just wake up
 ```
 
 ## Power Saving
-The code shuts down unused peripherals and utilizes the sleep mode power down function. It wakes up on every button press by pin change interrupt. The device will work several months on a CR2032 battery.
+The code shuts down unused peripherals and utilizes the sleep mode power down function. It wakes up on every button press by pin change interrupt.
 
 ```c
 // Disable unused peripherals and prepare sleep mode to save power
@@ -110,6 +110,10 @@ PCMSK =  BT_MASK;                     // turn on interrupt on button pins
 sei();                                // enable global interrupts
 set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // set sleep mode to power down
 ```
+
+As long as no button is pressed, the ATtiny remains in sleep mode power down and consumes a current of around 150nA at a voltage of 3V. The typical capacity of a CR2032 battery is 230mAh. This results in a theoretical battery life of 1.5 million hours or 175 years. In real life, of course, no battery will last that long. When the button is pressed, peaks of up to 30mA are consumed. The diagram below shows the course of the current consumption when a button is pressed according to a measurement with the [Power Profiler Kit II](https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2):
+
+![current.png](https://raw.githubusercontent.com/wagiminator/ATtiny13-TinyRemoteXL/main/documentation/TinyRemoteXL_current.png)
 
 ## Timing Accuracy
 The accuracy of the internal oscillator of the ATtiny13 is +/-10% with the factory calibration. Usually this is sufficient for an infrared remote control. Slight deviations in timing are tolerated by the receiver, since cheap remote controls are usually not more accurate. Nevertheless, it is recommended to [manually calibrate](https://github.com/wagiminator/ATtiny84-TinyCalibrator) the internal oscillator and set the corresponding OSCCAL value at the beginning of the code.
