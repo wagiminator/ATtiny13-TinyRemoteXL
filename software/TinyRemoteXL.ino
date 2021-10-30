@@ -1,5 +1,15 @@
-// tinyIRremote XL for ATtiny13A
-// 
+// ===================================================================================
+// Project:   TinyRemoteXL - IR Remote Control based on ATtiny13A
+// Version:   v1.0
+// Year:      2021
+// Author:    Stefan Wagner
+// Github:    https://github.com/wagiminator
+// EasyEDA:   https://easyeda.com/wagiminator
+// License:   http://creativecommons.org/licenses/by-sa/3.0/
+// ===================================================================================
+//
+// Description:
+// ------------
 // IR remote control using an ATtiny 13A. Timer0 generates a carrier
 // frequency with a duty cycle of 25% on the output pin to the
 // IR LED. The signal is modulated by toggling the pin to input/output.
@@ -7,18 +17,22 @@
 // The code utilizes the sleep mode power down function. The device will
 // work several months on a CR2032 battery.
 //
-//                         +-\/-+
-//       --- A0 (D5) PB5  1|    |8  Vcc
-// BINT2 --- A3 (D3) PB3  2|    |7  PB2 (D2) A1 --- BADC1
-// BADC2 --- A2 (D4) PB4  3|    |6  PB1 (D1) ------ IR LED
-//                   GND  4|    |5  PB0 (D0) ------ BINT1
-//                         +----+    
+// Wiring:
+// -------
+//                          +-\/-+
+//       --- RST ADC0 PB5  1|°   |8  Vcc
+// BINT2 ------- ADC3 PB3  2|    |7  PB2 ADC1 -------- BADC1
+// BADC2 ------- ADC2 PB4  3|    |6  PB1 AIN1 OC0B --- IR LED
+//                    GND  4|    |5  PB0 AIN0 OC0A --- BINT1
+//                          +----+
 //
-// Controller: ATtiny13
+// Compilation Settings:
+// ---------------------
+// Controller: ATtiny13A
 // Core:       MicroCore (https://github.com/MCUdude/MicroCore)
 // Clockspeed: 1.2 MHz internal
-// BOD:        BOD disabled (energy saving)
-// Timing:     Micros disabled (Timer0 is in use)
+// BOD:        BOD disabled
+// Timing:     Micros disabled
 //
 // Leave the rest on default settings. Don't forget to "Burn bootloader"!
 // No Arduino core functions or libraries are used. Use the makefile if 
@@ -27,21 +41,22 @@
 // Note: The internal oscillator may need to be calibrated for the device
 //       to function properly.
 //
-// 2021 by Stefan Wagner 
-// Project Files (EasyEDA): https://easyeda.com/wagiminator
-// Project Files (Github):  https://github.com/wagiminator
-// License: http://creativecommons.org/licenses/by-sa/3.0/
+// Fuse settings: -U lfuse:w:0x2a:m -U hfuse:w:0xff:m
 
+
+// ===================================================================================
+// Libraries and Definitions
+// ===================================================================================
 
 // Oscillator calibration value (uncomment and set if necessary)
 //#define OSCCAL_VAL  0x48
 
 // Libraries
-#include <avr/io.h>
-#include <avr/sleep.h>
-#include <avr/pgmspace.h>
-#include <avr/interrupt.h>
-#include <util/delay.h>
+#include <avr/io.h>           // for GPIO
+#include <avr/sleep.h>        // for sleep mode
+#include <avr/pgmspace.h>     // to store data in programm memory
+#include <avr/interrupt.h>    // for interrupts
+#include <util/delay.h>       // for delays
 
 // Pin assignments
 #define IR_PIN      PB1       // IR LED pin
@@ -73,9 +88,9 @@
 // Port mask for button interrupt pins
 #define BT_MASK   ((1<<BINT1_PIN)|(1<<BINT2_PIN))
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // NEC Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The NEC protocol uses pulse distance modulation.
 //
@@ -118,9 +133,9 @@
 
 // Send a single byte via IR
 void NEC_sendByte(uint8_t value) {
-  for (uint8_t i=8; i; i--, value>>=1) {  // send 8 bits, LSB first
+  for(uint8_t i=8; i; i--, value>>=1) {   // send 8 bits, LSB first
     NEC_normalPulse();                    // 562us burst, 562us pause
-    if (value & 1) NEC_bit1Pause();       // extend pause if bit is 1
+    if(value & 1) NEC_bit1Pause();        // extend pause if bit is 1
   }
 }
 
@@ -132,7 +147,7 @@ void NEC_sendCode(uint16_t addr, uint8_t cmd) {
 
   // Send telegram
   NEC_startPulse();           // 9ms burst + 4.5ms pause to signify start of transmission
-  if (addr > 0xFF) {          // if extended NEC protocol (16-bit address):
+  if(addr > 0xFF) {           // if extended NEC protocol (16-bit address):
     NEC_sendByte(addr);       // send address low byte
     NEC_sendByte(addr >> 8);  // send address high byte
   } else {                    // if standard NEC protocol (8-bit address):
@@ -145,9 +160,9 @@ void NEC_sendCode(uint16_t addr, uint8_t cmd) {
   while(~PINB & BT_MASK) NEC_repeatCode();  // send repeat command until button is released
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // SAMSUNG Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The SAMSUNG protocol corresponds to the NEC protocol, except that the start pulse is
 // 4.5ms long and the address byte is sent twice. The telegram is repeated every 108ms
@@ -174,9 +189,9 @@ void SAM_sendCode(uint8_t addr, uint8_t cmd) {
   } while(~PINB & BT_MASK);   // repeat sending until button is released
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // RC-5 Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The RC-5 protocol uses bi-phase modulation (Manchester coding).
 //
@@ -224,9 +239,9 @@ void RC5_sendCode(uint8_t addr, uint8_t cmd) {
   // Prepare the message
   uint16_t message = addr << 6;               // shift address to the right position
   message |= (cmd & 0x3f);                    // add the low 6 bits of the command
-  if (~cmd & 0x40) message |= RC5_cmdBit7;    // add inverse of 7th command bit
+  if(~cmd & 0x40) message |= RC5_cmdBit7;     // add inverse of 7th command bit
   message |= RC5_startBit;                    // add start bit
-  if (RC5_toggle) message |= RC5_toggleBit;   // add toggle bit
+  if(RC5_toggle) message |= RC5_toggleBit;    // add toggle bit
 
   // Send the message
   do {
@@ -240,9 +255,9 @@ void RC5_sendCode(uint8_t addr, uint8_t cmd) {
   RC5_toggle ^= 1;                            // toggle the toggle bit
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // SONY SIRC Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The SONY SIRC protocol uses pulse length modulation.
 //
@@ -300,12 +315,12 @@ void SON_sendCode(uint16_t addr, uint8_t cmd, uint8_t bits) {
       default: break;
     }
     SON_repeatPause();                        // wait until next repeat
-  } while (~PINB & BT_MASK);                  // repeat sending until button is released
+  } while(~PINB & BT_MASK);                   // repeat sending until button is released
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // ADC Implementation for Buttons
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 
 // Button ADC thresholds
 const uint8_t THRESHOLDS[] PROGMEM = {217, 173, 158, 136, 103, 41, 0};
@@ -315,31 +330,30 @@ uint8_t readButtonRow(uint8_t port) {
   PRR     = 0;                            // power on ADC
   ADMUX   = (1<<ADLAR) | port;            // set port, Vcc as reference, 8-bit sample
   ADCSRA |= (1<<ADEN) | (1<<ADSC);        // enable ADC and start sampling
-  while (ADCSRA & (1<<ADSC));             // wait until sampling complete
+  while(ADCSRA & (1<<ADSC));              // wait until sampling complete
   uint8_t raw = ADCH;                     // read sampling result (8 bits)
   ADCSRA &= ~(1<<ADEN);                   // disable ADC
   PRR     = 1<<PRADC;                     // shut down ADC
   uint8_t  button = 0;                    // figure out button number
-  while (raw < pgm_read_byte(&THRESHOLDS[button])) button++;
+  while(raw < pgm_read_byte(&THRESHOLDS[button])) button++;
   return button;                          // return button number
 }
 
 // Read and return button number (0 = no button)
 uint8_t readButton(void) {
   uint8_t  button = 0;                    // start with number 0
-  if (~PINB & (1<<BINT1_PIN)) button = readButtonRow(BADC1_AP);
-  else if (~PINB & (1<<BINT2_PIN)) {
+  if(~PINB & (1<<BINT1_PIN)) button = readButtonRow(BADC1_AP);
+  else if(~PINB & (1<<BINT2_PIN)) {
     button = readButtonRow(BADC2_AP);
-    if (button) button += 6;
+    if(button) button += 6;
   }
   return button;                          // return button number
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // Main Function
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 
-// Main function
 int main(void) {
   // Set oscillator calibration value
   #ifdef OSCCAL_VAL
@@ -370,7 +384,7 @@ int main(void) {
     sleep_mode();                       // sleep until button is pressed
     _delay_ms(1);                       // debounce
     uint8_t button = readButton();      // read button number
-    switch (button) {                   // send corresponding IR code
+    switch(button) {                    // send corresponding IR code
       case  1:  KEY1;  break;
       case  2:  KEY2;  break;
       case  3:  KEY3;  break;
@@ -389,4 +403,4 @@ int main(void) {
 }
 
 // Pin change interrupt service routine
-EMPTY_INTERRUPT (PCINT0_vect);          // nothing to be done here, just wake up from sleep
+EMPTY_INTERRUPT(PCINT0_vect);           // nothing to be done here, just wake up from sleep
